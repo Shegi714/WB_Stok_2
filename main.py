@@ -1,15 +1,43 @@
 import requests
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
 import time
+import os
+
+# Для хранения данных авторизации (credentials.json)
+CLIENT_SECRET_FILE = 'credentials/client_secret_945491541171-nhkieff3pjdu9ipn4d25eg0rn9mcahnt.apps.googleusercontent.com.json'  # Файл с секретом клиента
+SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+
+# Файл для хранения Access и Refresh токенов
+CREDENTIALS_FILE = 'credentials/token.json'
+
+
+def get_credentials():
+    """Получение авторизационных данных из token.json или создание нового файла, если токен устарел"""
+    creds = None
+    # Проверяем, существует ли токен
+    if os.path.exists(CREDENTIALS_FILE):
+        creds = Credentials.from_authorized_user_file(CREDENTIALS_FILE, SCOPES)
+
+    # Если нет токенов или они устарели, запрашиваем новые
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            # Проводим авторизацию через браузер, если токены не существуют
+            flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, SCOPES)
+            creds = flow.run_local_server(port=0)
+        # Сохраняем токен для следующего использования
+        with open(CREDENTIALS_FILE, 'w') as token:
+            token.write(creds.to_json())
+
+    return creds
 
 
 def get_task_id(api_token):
     """
     Отправляет запрос к API Wildberries и возвращает значение task_id из ответа.
-
-    :param api_token: str - Токен для авторизации в API.
-    :return: str - Значение task_id или None, если task_id не найден.
     """
     url = "https://seller-analytics-api.wildberries.ru/api/v1/warehouse_remains"
 
@@ -50,10 +78,6 @@ def get_task_id(api_token):
 def send_api_request(task_id, api_token, handle_response):
     """
     Отправляет API-запрос к Wildberries API для загрузки данных по task_id.
-
-    :param task_id: str - Уникальный идентификатор задачи.
-    :param api_token: str - Токен API для аутентификации.
-    :param handle_response: function - Функция для обработки ответа API.
     """
     if not task_id:
         print("task_id отсутствует. Невозможно выполнить запрос.")
@@ -84,8 +108,9 @@ def send_api_request(task_id, api_token, handle_response):
         except requests.exceptions.HTTPError as e:
             if response.status_code in [404, 429]:
                 retries += 1
-                print(f"Получена ошибка {response.status_code}. Ожидание 15 секунд перед повтором попытки ({retries}/{max_retries})...")
-                time.sleep(15)
+                print(
+                    f"Получена ошибка {response.status_code}. Ожидание 20 секунд перед повтором попытки ({retries}/{max_retries})...")
+                time.sleep(20)
             else:
                 print(f"HTTP ошибка: {e}")
                 return
@@ -97,24 +122,13 @@ def send_api_request(task_id, api_token, handle_response):
     print(f"Не удалось выполнить запрос после {max_retries} попыток.")
 
 
-def upload_data_to_google_sheets(data, service_account_file, spreadsheet_name, sheet_name):
+def upload_data_to_google_sheets(data, creds, spreadsheet_name, sheet_name):
     """
     Загружает данные в указанный лист Google Sheets и очищает его перед записью.
-
-    :param data: list - Данные в формате JSON (список словарей).
-    :param service_account_file: str - Путь к JSON-файлу с ключами для Google API.
-    :param spreadsheet_name: str - Название Google Sheets таблицы.
-    :param sheet_name: str - Название листа в таблице.
     """
     try:
-        # Проверяем наличие файла учетных данных
-        with open(service_account_file, 'r') as f:
-            pass  # Проверяем, что файл существует
-
         # Устанавливаем соединение с Google Sheets
-        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-        credentials = ServiceAccountCredentials.from_json_keyfile_name(service_account_file, scope)
-        client = gspread.authorize(credentials)
+        client = gspread.authorize(creds)
 
         # Открываем таблицу
         spreadsheet = client.open(spreadsheet_name)
@@ -155,8 +169,6 @@ def upload_data_to_google_sheets(data, service_account_file, spreadsheet_name, s
         else:
             print("Данные отсутствуют или их формат не поддерживается.")
 
-    except FileNotFoundError:
-        print(f"Файл учетных данных не найден: {service_account_file}. Проверьте путь.")
     except gspread.exceptions.APIError as e:
         print(f"Ошибка Google API: {e}")
     except Exception as e:
@@ -170,15 +182,15 @@ def handle_response(data):
     """
     print("Данные получены. Отправляем в Google Sheets...")
 
-    # Указываем путь к JSON-файлу с ключами
-    SERVICE_ACCOUNT_FILE = 'credentials/animated-graph-443514-a5-27e379b134ca.json'
-
-    # Название Google Sheets таблицы и листа
+    # Указываем название Google Sheets таблицы и листа
     SPREADSHEET_NAME = 'Wildberries Data'
     SHEET_NAME = 'Stocks'
 
+    # Получаем учетные данные для работы с Google Sheets
+    creds = get_credentials()
+
     # Вызываем функцию загрузки
-    upload_data_to_google_sheets(data, SERVICE_ACCOUNT_FILE, SPREADSHEET_NAME, SHEET_NAME)
+    upload_data_to_google_sheets(data, creds, SPREADSHEET_NAME, SHEET_NAME)
     print("Данные успешно загружены в Google Sheets!")
 
 
