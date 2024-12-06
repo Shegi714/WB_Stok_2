@@ -1,5 +1,4 @@
 import requests
-import json
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import time
@@ -120,7 +119,6 @@ def upload_data_to_google_sheets(data, service_account_file, spreadsheet_name, s
         # Открываем таблицу
         spreadsheet = client.open(spreadsheet_name)
 
-        # Открываем указанный лист (создаём его, если он не существует)
         try:
             sheet = spreadsheet.worksheet(sheet_name)
         except gspread.exceptions.WorksheetNotFound:
@@ -168,7 +166,6 @@ def upload_data_to_google_sheets(data, service_account_file, spreadsheet_name, s
 def handle_response(data):
     """
     Обрабатывает ответ от API и загружает данные в Google Sheets.
-
     :param data: dict - Данные, полученные из API.
     """
     print("Данные получены. Отправляем в Google Sheets...")
@@ -178,7 +175,7 @@ def handle_response(data):
 
     # Название Google Sheets таблицы и листа
     SPREADSHEET_NAME = 'Wildberries Data'
-    SHEET_NAME = 'Stocks'  # Название листа (например, "Данные")
+    SHEET_NAME = 'Stocks'
 
     # Вызываем функцию загрузки
     upload_data_to_google_sheets(data, SERVICE_ACCOUNT_FILE, SPREADSHEET_NAME, SHEET_NAME)
@@ -186,7 +183,6 @@ def handle_response(data):
 
 
 if __name__ == "__main__":
-    # Замените на ваш реальный токен
     api_token = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjQxMTE4djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc0ODk5MzcyNiwiaWQiOiIwMTkzOGM0ZC1jMTVhLTczMTAtYmZjYS03NDM3NGI2YzY3NzEiLCJpaWQiOjI3ODc5NDgwLCJvaWQiOjUwMTM4LCJzIjoxMDczNzQ1MDIyLCJzaWQiOiJlYWMyYjNjNy1iZTA5LTVkYzYtOWE2MS01NTRlYWU3ZDgyNTEiLCJ0IjpmYWxzZSwidWlkIjoyNzg3OTQ4MH0.d8xSaX6q4raxU5Dk_1xQ1S6CErxhiSv23gSci2r007KJNR3nK5b-zf-Ey0NT79KV3iPuT1UPZPp-dThZCKvtsg"
 
     # Первый запрос для получения task_id
