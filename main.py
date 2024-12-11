@@ -65,7 +65,7 @@ def send_api_request(task_id, api_token, handle_response):
         "Authorization": f"Bearer {api_token}"
     }
 
-    max_retries = 5  # Максимальное количество попыток
+    max_retries = 50  # Максимальное количество попыток
     retries = 0
 
     while retries < max_retries:
@@ -80,12 +80,12 @@ def send_api_request(task_id, api_token, handle_response):
             else:
                 print(f"Ошибка: статус-код {response.status_code}, текст: {response.text}")
                 return
-
+time.sleep(15)
         except requests.exceptions.HTTPError as e:
             if response.status_code in [404, 429]:
                 retries += 1
-                print(f"Получена ошибка {response.status_code}. Ожидание 15 секунд перед повтором попытки ({retries}/{max_retries})...")
-                time.sleep(15)
+                print(f"Получена ошибка {response.status_code}. Ожидание 5 секунд перед повтором попытки ({retries}/{max_retries})...")
+                time.sleep(5)
             else:
                 print(f"HTTP ошибка: {e}")
                 return
@@ -171,7 +171,7 @@ def handle_response(data):
     print("Данные получены. Отправляем в Google Sheets...")
 
     # Указываем путь к JSON-файлу с ключами
-    SERVICE_ACCOUNT_FILE = 'credentials/animated-graph-443514-a5-27e379b134ca.json'
+    SERVICE_ACCOUNT_FILE = 'C:/Users/machi/PycharmProjects/WB_Stok_2/credentials/key.json'
 
     # Название Google Sheets таблицы и листа
     SPREADSHEET_NAME = 'Wildberries Data'
@@ -191,3 +191,7 @@ if __name__ == "__main__":
     # Второй запрос для получения данных и загрузки их в Google Sheets
     if task_id:
         send_api_request(task_id, api_token, handle_response)
+
+
+
+input("Нажмите Enter, чтобы закрыть...")
